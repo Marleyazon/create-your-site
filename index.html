@@ -368,46 +368,82 @@
             touch-action: none;
         }
 
-        #mobile-dock-bar {
+        #mobile-icon-bar {
             display: none;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 10px 14px;
+            gap: 4px;
+            padding: 6px 8px;
             background: #1a1a1a;
             border-bottom: 1px solid #444;
-            cursor: pointer;
+            overflow-x: auto;
+            flex-shrink: 0;
         }
 
-        #mobile-dock-bar .dock-handle {
-            width: 40px;
-            height: 4px;
-            border-radius: 3px;
-            background: #666;
-            margin: 0 auto;
-        }
-
-        #mobile-dock-bar .dock-buttons {
+        .micon {
+            flex: 0 0 auto;
             display: flex;
-            gap: 8px;
-        }
-
-        #mobile-dock-bar button {
-            background: #333;
-            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            width: 52px;
+            height: 44px;
+            background: #2d2d2d;
+            color: #ccc;
             border: none;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 13px;
+            border-radius: 8px;
             cursor: pointer;
         }
 
-        #mobile-dock-bar button.active-pos {
-            background: #007acc;
+        .micon .micon-glyph {
+            font-size: 16px;
+            line-height: 1;
         }
 
-        /* ===== RESPONSIVE / MOBILE : outils en bande haut/bas type CapCut ===== */
+        .micon .micon-label {
+            font-size: 8px;
+            line-height: 1;
+        }
+
+        .micon.active {
+            background: #007acc;
+            color: white;
+        }
+
+        #micon-pos.pos-top .micon-glyph {
+            transform: rotate(180deg);
+        }
+
+        #mobile-actions-bar {
+            display: none;
+        }
+
+        /* ===== RESPONSIVE / MOBILE : barre d'icones + panneau qui s'ouvre type CapCut ===== */
         @media (max-width: 860px) {
+            #mobile-actions-bar {
+                display: flex;
+                gap: 6px;
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 500;
+            }
+
+            #mobile-actions-bar button {
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                border: none;
+                background: rgba(20,20,20,0.75);
+                color: white;
+                font-size: 16px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                cursor: pointer;
+            }
+
+            #mobile-actions-bar button.danger {
+                background: rgba(255,71,87,0.85);
+            }
+
             html, body {
                 height: 100vh;
                 overflow: hidden;
@@ -425,14 +461,12 @@
                 order: 1;
             }
 
-            #mobile-dock-bar {
-                display: none;
-                order: 2;
-                flex-shrink: 0;
+            body.app-active #mobile-icon-bar {
+                display: flex;
             }
 
-            body.app-active #mobile-dock-bar {
-                display: flex;
+            #mobile-icon-bar {
+                order: 2;
             }
 
             #control-panel {
@@ -443,28 +477,43 @@
                 position: relative;
                 flex-shrink: 0;
                 order: 3;
-                height: 42vh;
-                max-height: 42vh;
+                height: 0;
+                max-height: 48vh;
+                padding: 0 20px;
                 overflow-y: auto;
-                transition: height 0.2s ease;
+                overflow-x: hidden;
+                transition: height 0.22s ease, padding 0.22s ease;
             }
 
-            /* Panneau reduit : juste la bande visible, outils caches */
-            body.dock-collapsed #control-panel {
-                height: 0;
-                max-height: 0;
-                overflow: hidden;
-                padding: 0 20px;
+            /* Panneau ouvert quand une section mobile est active */
+            body.mobile-sheet-open #control-panel {
+                height: 48vh;
+                padding: 16px 20px;
+            }
+
+            /* Sur mobile, les sections sont cachees par defaut : seule celle choisie (via data-tool) s'affiche.
+               !important necessaire car certaines sections (ex: edit-section) recoivent aussi
+               un style inline display:block/none depuis le JS (comportement desktop). */
+            #control-panel > [data-tool],
+            #control-panel > h2,
+            #control-panel > .hint,
+            #control-panel > .btn-publish,
+            #control-panel > div:first-child {
+                display: none !important;
+            }
+
+            body.mobile-sheet-open #control-panel > [data-tool].tool-active {
+                display: block !important;
             }
 
             /* Outils positionnes en HAUT de l'ecran (au-dessus du canevas) */
-            body.dock-top #mobile-dock-bar {
+            body.panel-top #mobile-icon-bar {
                 order: 1;
             }
-            body.dock-top #control-panel {
+            body.panel-top #control-panel {
                 order: 2;
             }
-            body.dock-top #preview-area {
+            body.panel-top #preview-area {
                 order: 3;
             }
 
@@ -521,12 +570,25 @@
         </div>
     </div>
 
-    <div id="mobile-dock-bar" onclick="toggleDockCollapse()">
-        <div class="dock-buttons" onclick="event.stopPropagation()">
-            <button id="dock-btn-bottom" class="active-pos" onclick="setDockPosition('bottom')" type="button">⬇ Outils en bas</button>
-            <button id="dock-btn-top" onclick="setDockPosition('top')" type="button">⬆ Outils en haut</button>
-        </div>
-        <span id="dock-collapse-label" style="font-size:12px; color:#aaa;">Replier ▾</span>
+    <div id="mobile-icon-bar">
+        <button class="micon" data-sec="pages" onclick="showMobileSection('pages')" type="button"><span class="micon-glyph">📄</span><span class="micon-label">Pages</span></button>
+        <button class="micon" data-sec="text" onclick="showMobileSection('text')" type="button"><span class="micon-glyph">T</span><span class="micon-label">Texte</span></button>
+        <button class="micon" data-sec="button" onclick="showMobileSection('button')" type="button"><span class="micon-glyph">▭</span><span class="micon-label">Bouton</span></button>
+        <button class="micon" data-sec="shape" onclick="showMobileSection('shape')" type="button"><span class="micon-glyph">◆</span><span class="micon-label">Forme</span></button>
+        <button class="micon" data-sec="image" onclick="showMobileSection('image')" type="button"><span class="micon-glyph">🖼</span><span class="micon-label">Image</span></button>
+        <button class="micon" data-sec="video" onclick="showMobileSection('video')" type="button"><span class="micon-glyph">▶</span><span class="micon-label">Video</span></button>
+        <button class="micon" data-sec="social" onclick="showMobileSection('social')" type="button"><span class="micon-glyph">@</span><span class="micon-label">Social</span></button>
+        <button class="micon" data-sec="navbar" onclick="showMobileSection('navbar')" type="button"><span class="micon-glyph">☰</span><span class="micon-label">Nav</span></button>
+        <button class="micon" data-sec="code" onclick="showMobileSection('code')" type="button"><span class="micon-glyph">&lt;/&gt;</span><span class="micon-label">Code</span></button>
+        <button class="micon" data-sec="paragraph" onclick="showMobileSection('paragraph')" type="button"><span class="micon-glyph">¶</span><span class="micon-label">Texte+</span></button>
+        <button class="micon" data-sec="bg" onclick="showMobileSection('bg')" type="button"><span class="micon-glyph">🎨</span><span class="micon-label">Fond</span></button>
+        <button class="micon" data-sec="grid" onclick="showMobileSection('grid')" type="button"><span class="micon-glyph">⊞</span><span class="micon-label">Grille</span></button>
+        <button class="micon" data-sec="style" onclick="showMobileSection('style')" type="button"><span class="micon-glyph">✨</span><span class="micon-label">Style</span></button>
+        <button class="micon" data-sec="project" onclick="showMobileSection('project')" type="button"><span class="micon-glyph">💾</span><span class="micon-label">Projet</span></button>
+        <button class="micon" data-sec="edit" onclick="showMobileSection('edit')" type="button"><span class="micon-glyph">✎</span><span class="micon-label">Modifier</span></button>
+        <button class="micon" id="micon-pos" onclick="togglePanelPositionMobile()" type="button"><span class="micon-glyph">⇅</span><span class="micon-label">Position</span></button>
+        <button class="micon" id="micon-publish" onclick="openPublishModal()" type="button"><span class="micon-glyph">🚀</span><span class="micon-label">Publier</span></button>
+        <button class="micon" onclick="logout()" type="button"><span class="micon-glyph">🚪</span><span class="micon-label">Quitter</span></button>
     </div>
 
     <div id="control-panel">
@@ -535,7 +597,7 @@
             <button onclick="logout()" style="background: #ff4757; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Deconnexion</button>
         </div>
 
-        <div class="control-section" style="border: 1px solid #ffcc00;">
+        <div class="control-section" data-tool="project" style="border: 1px solid #ffcc00;">
             <label style="color: #ffcc00; font-weight: bold;">Projet & Fichier :</label>
             <div style="display: flex; gap: 5px; margin-bottom: 8px;">
                 <button class="btn-action" style="margin-top:0; background:#6c5ce7;" onclick="exportProjectJSON()">Exporter JSON</button>
@@ -545,34 +607,36 @@
             <button class="btn-action" style="background:#444;" onclick="togglePanelTheme()">Changer Theme Panneau</button>
         </div>
 
-        <h2>Gestion des Pages</h2>
-        <div class="page-tabs" id="page-tabs-container">
-            <button class="active" onclick="switchPage('page1')">Page 1</button>
-            <button onclick="addNewPage()">+ Page</button>
+        <div data-tool="pages">
+            <h2>Gestion des Pages</h2>
+            <div class="page-tabs" id="page-tabs-container">
+                <button class="active" onclick="switchPage('page1')">Page 1</button>
+                <button onclick="addNewPage()">+ Page</button>
+            </div>
         </div>
 
         <h2>Studio Mega v3.0 - Nouveaux Elements</h2>
 
         <!-- NOUVEAU : Barre de Navigation -->
-        <div class="control-section" style="border: 1px solid #00cec9;">
+        <div class="control-section" data-tool="navbar" style="border: 1px solid #00cec9;">
             <label style="color: #00cec9; font-weight: bold;">Ajouter une Barre de Navigation :</label>
             <input type="text" id="new-nav-title" value="MonSite.fr">
             <label>Couleur de fond de la barre :</label>
             <input type="color" id="new-nav-bg" value="#2d3436">
             <button class="btn-action" onclick="addElement('navbar')">Ajouter la Barre de Navigation</button>
-            <div class="hint">Les liens de la barre menent automatiquement vers chaque page du site une fois publie.</div>
+            <div class="hint" style="display:block;">Les liens de la barre menent automatiquement vers chaque page du site une fois publie.</div>
         </div>
 
         <!-- NOUVEAU : Bloc Video -->
-        <div class="control-section" style="border: 1px solid #fdcb6e;">
+        <div class="control-section" data-tool="video" style="border: 1px solid #fdcb6e;">
             <label style="color: #fdcb6e; font-weight: bold;">Ajouter un Lecteur Video (YouTube ou MP4/WebM direct) :</label>
             <input type="text" id="new-video-url" placeholder="Lien YouTube ou lien direct (.mp4)">
             <button class="btn-action" onclick="addElement('video')">Ajouter le Bloc Video</button>
-            <div class="hint">Colle un lien YouTube (youtube.com/watch?v=... ou youtu.be/...) ou un lien video direct .mp4/.webm.</div>
+            <div class="hint" style="display:block;">Colle un lien YouTube (youtube.com/watch?v=... ou youtu.be/...) ou un lien video direct .mp4/.webm.</div>
         </div>
 
         <!-- NOUVEAU : Reseaux Sociaux -->
-        <div class="control-section" style="border: 1px solid #e84393;">
+        <div class="control-section" data-tool="social" style="border: 1px solid #e84393;">
             <label style="color: #e84393; font-weight: bold;">Ajouter des Icones Sociaux :</label>
             <select id="new-social-type">
                 <option value="youtube">YouTube</option>
@@ -585,18 +649,18 @@
         </div>
 
         <!-- NOUVEAU : Grille d'alignement -->
-        <div class="control-section" style="border: 1px solid #74b9ff;">
+        <div class="control-section" data-tool="grid" style="border: 1px solid #74b9ff;">
             <label style="color: #74b9ff; font-weight: bold;">Grille d'Alignement (placement des elements) :</label>
-            <div class="page-tabs" style="margin-bottom:8px;">
+            <div class="page-tabs" style="margin-bottom:8px; display:flex;">
                 <button id="btn-mode-libre" class="active" onclick="setSnapMode('free')" type="button">Mode Vue Libre</button>
                 <button id="btn-mode-grille" onclick="setSnapMode('grid')" type="button">Mode Grille</button>
             </div>
             <label>Espacement de la grille : <span id="val-grid-size" style="color:#74b9ff; font-weight:bold;">20px</span></label>
             <input type="range" id="grid-size-input" min="5" max="100" step="5" value="20" oninput="updateGridSize(this.value)">
-            <div class="hint">En Mode Grille, les elements se collent automatiquement aux points de la grille pendant le deplacement. La grille visuelle s'affiche aussi sur le canvas.</div>
+            <div class="hint" style="display:block;">En Mode Grille, les elements se collent automatiquement aux points de la grille pendant le deplacement. La grille visuelle s'affiche aussi sur le canvas.</div>
         </div>
 
-        <div class="control-section" style="border: 1px solid #ff4757;">
+        <div class="control-section" data-tool="style" style="border: 1px solid #ff4757;">
             <label style="color: #ff4757; font-weight: bold;">Personnalite & Theme du site :</label>
             <select id="preset-personality" onchange="applyPersonalityPreset(this.value)">
                 <option value="none">-- Choisir un style / personnalite --</option>
@@ -607,12 +671,12 @@
             </select>
         </div>
         
-        <div class="control-section" id="edit-section" style="border: 2px solid #ffcc00; display: none;">
+        <div class="control-section" id="edit-section" data-tool="edit" style="border: 2px solid #ffcc00; display: none;">
             <label style="color: #ffcc00; font-weight: bold;">Element selectionne :</label>
             <div id="edit-inputs-container"></div>
         </div>
 
-        <div class="control-section">
+        <div class="control-section" data-tool="text">
             <label>Ajouter du Texte :</label>
             <input type="text" id="new-text-val" value="Mon Texte">
             <label>Couleur :</label>
@@ -625,7 +689,7 @@
             <button class="btn-action" onclick="addElement('text')">Ajouter le Texte</button>
         </div>
 
-        <div class="control-section">
+        <div class="control-section" data-tool="button">
             <label>Ajouter un Bouton :</label>
             <input type="text" id="new-btn-text" value="Cliquez ici">
             <label>Vers quelle page ?</label>
@@ -635,7 +699,7 @@
             <button class="btn-action" onclick="addElement('button')">Ajouter le Bouton</button>
         </div>
 
-        <div class="control-section">
+        <div class="control-section" data-tool="shape">
             <label>Ajouter une Banderole / Forme :</label>
             <select id="new-shape-type">
                 <option value="banner">Banderole Rectangle</option>
@@ -651,7 +715,7 @@
             <button class="btn-action" onclick="addElement('shape')">Ajouter la Banderole / Forme</button>
         </div>
 
-        <div class="control-section" style="border: 1px solid #00d2d3;">
+        <div class="control-section" data-tool="code" style="border: 1px solid #00d2d3;">
             <label style="color: #00d2d3; font-weight: bold;">Ajouter un Bloc de Code :</label>
             <textarea id="new-code-val" rows="3">// Votre code ici...</textarea>
             <label>Couleur du texte de code :</label>
@@ -659,7 +723,7 @@
             <button class="btn-action" onclick="addElement('code')">Ajouter le Bloc de Code</button>
         </div>
 
-        <div class="control-section" style="border: 1px solid #00d2d3;">
+        <div class="control-section" data-tool="paragraph" style="border: 1px solid #00d2d3;">
             <label style="color: #00d2d3; font-weight: bold;">Ajouter une Boite Paragraphe :</label>
             <textarea id="new-para-val" rows="3">Ceci est un long paragraphe descriptif...</textarea>
             <label>Couleur :</label>
@@ -667,14 +731,14 @@
             <button class="btn-action" onclick="addElement('paragraph')">Ajouter le Paragraphe</button>
         </div>
 
-        <div class="control-section">
+        <div class="control-section" data-tool="image">
             <label>Ajouter une Image :</label>
             <input type="file" id="new-img-file" accept="image/*" style="margin-bottom:8px; background:#222; padding:6px; border:1px solid #555; border-radius:4px; color:white; width:100%;">
             <label><input type="checkbox" id="new-img-decal"> Decal (Mettre en avant)</label>
             <button class="btn-action" onclick="addElement('image')">Inserer l'Image</button>
         </div>
 
-        <div class="control-section">
+        <div class="control-section" data-tool="bg">
             <label>Fond de la page :</label>
             <div style="display:flex; gap:10px; margin-bottom:8px;">
                 <input type="color" id="page-bg-color" value="#ffffff" onchange="updatePageBgColor(this.value)" style="flex:1;">
@@ -692,6 +756,12 @@
     </div>
 
     <div id="preview-area">
+        <div id="mobile-actions-bar">
+            <button onclick="undoAction()" title="Annuler" type="button">↶</button>
+            <button onclick="redoAction()" title="Retablir" type="button">↷</button>
+            <button onclick="duplicateSelectedElement()" title="Dupliquer" type="button">⧉</button>
+            <button onclick="deleteSelectedElement()" title="Supprimer" type="button" class="danger">🗑</button>
+        </div>
         <div id="page-canvas" onclick="unselectElement(event)">
             <div id="aline-v" class="align-line-v"></div>
             <div id="aline-h" class="align-line-h"></div>
@@ -820,20 +890,40 @@
         }
         // --- FIN Detection YouTube ---
 
-        function setDockPosition(pos) {
-            document.body.classList.remove('dock-top');
-            document.body.classList.remove('dock-collapsed');
-            if (pos === 'top') {
-                document.body.classList.add('dock-top');
+        // Barre d'icones mobile (type CapCut) : chaque icone ouvre/ferme sa propre section
+        function showMobileSection(key) {
+            const body = document.body;
+            const target = document.querySelector('[data-tool="' + key + '"]');
+            if (!target) return;
+
+            const alreadyActive = target.classList.contains('tool-active') && body.classList.contains('mobile-sheet-open');
+
+            document.querySelectorAll('[data-tool]').forEach(el => el.classList.remove('tool-active'));
+            document.querySelectorAll('.micon[data-sec]').forEach(btn => btn.classList.remove('active'));
+
+            if (alreadyActive) {
+                body.classList.remove('mobile-sheet-open');
+                return;
             }
-            document.getElementById('dock-btn-top').classList.toggle('active-pos', pos === 'top');
-            document.getElementById('dock-btn-bottom').classList.toggle('active-pos', pos === 'bottom');
-            document.getElementById('dock-collapse-label').innerText = 'Replier ▾';
+
+            target.classList.add('tool-active');
+            body.classList.add('mobile-sheet-open');
+            const activeBtn = document.querySelector('.micon[data-sec="' + key + '"]');
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const panel = document.getElementById('control-panel');
+            if (panel) panel.scrollTop = 0;
         }
 
-        function toggleDockCollapse() {
-            const collapsed = document.body.classList.toggle('dock-collapsed');
-            document.getElementById('dock-collapse-label').innerText = collapsed ? 'Deplier ▴' : 'Replier ▾';
+        function togglePanelPositionMobile() {
+            const isTop = document.body.classList.toggle('panel-top');
+            document.getElementById('micon-pos').classList.toggle('pos-top', isTop);
+        }
+
+        function closeMobileSheet() {
+            document.body.classList.remove('mobile-sheet-open');
+            document.querySelectorAll('[data-tool]').forEach(el => el.classList.remove('tool-active'));
+            document.querySelectorAll('.micon[data-sec]').forEach(btn => btn.classList.remove('active'));
         }
 
         // Renvoie les coordonnees x/y, que l'evenement vienne de la souris ou du tactile
@@ -989,6 +1079,7 @@
             localStorage.removeItem('site_builder_last_session');
             document.getElementById('auth-modal').style.display = 'flex';
             document.body.classList.remove('app-active');
+            closeMobileSheet();
             document.getElementById('control-panel').style.display = 'none';
             document.getElementById('auth-username').value = '';
             document.getElementById('auth-password').value = '';
@@ -1285,41 +1376,61 @@
             }
         }
 
+        function undoAction() {
+            if (undoStack.length > 0) {
+                redoStack.push(JSON.stringify(pages));
+                pages = JSON.parse(undoStack.pop());
+                selectedElementIndex = null;
+                renderCanvas();
+                saveUserData();
+            }
+        }
+
+        function redoAction() {
+            if (redoStack.length > 0) {
+                undoStack.push(JSON.stringify(pages));
+                pages = JSON.parse(redoStack.pop());
+                selectedElementIndex = null;
+                renderCanvas();
+                saveUserData();
+            }
+        }
+
+        function duplicateSelectedElement() {
+            if (selectedElementIndex !== null && pages[currentPage].elements[selectedElementIndex]) {
+                duplicateElement(selectedElementIndex);
+            }
+        }
+
+        function deleteSelectedElement() {
+            if (selectedElementIndex !== null && pages[currentPage].elements[selectedElementIndex]) {
+                saveState();
+                pages[currentPage].elements.splice(selectedElementIndex, 1);
+                selectedElementIndex = null;
+                renderCanvas();
+                saveUserData();
+            }
+        }
+
         document.addEventListener('keydown', function(e) {
             if (!currentUser) return;
             const isInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
 
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 e.preventDefault();
-                if (undoStack.length > 0) {
-                    redoStack.push(JSON.stringify(pages));
-                    pages = JSON.parse(undoStack.pop());
-                    selectedElementIndex = null;
-                    renderCanvas();
-                    saveUserData();
-                }
+                undoAction();
             } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w') {
                 e.preventDefault();
-                if (redoStack.length > 0) {
-                    undoStack.push(JSON.stringify(pages));
-                    pages = JSON.parse(redoStack.pop());
-                    selectedElementIndex = null;
-                    renderCanvas();
-                    saveUserData();
-                }
+                redoAction();
             } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
                 if (selectedElementIndex !== null && pages[currentPage].elements[selectedElementIndex]) {
                     e.preventDefault();
-                    duplicateElement(selectedElementIndex);
+                    duplicateSelectedElement();
                 }
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (selectedElementIndex !== null && !isInput) {
                     e.preventDefault();
-                    saveState();
-                    pages[currentPage].elements.splice(selectedElementIndex, 1);
-                    selectedElementIndex = null;
-                    renderCanvas();
-                    saveUserData();
+                    deleteSelectedElement();
                 }
             }
         });
