@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Createur de Site Pro - Studio Mega v4.0</title>
-<link rel="preconnect" href="[fonts.googleapis.com](https://fonts.googleapis.com)">
-<link href="[fonts.googleapis.com](https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Bebas+Neue&family=Orbitron:wght@500;800&family=Playfair+Display:wght@600&family=Press+Start+2P&display=swap)" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Bebas+Neue&family=Orbitron:wght@500;800&family=Playfair+Display:wght@600&family=Press+Start+2P&display=swap" rel="stylesheet">
 
 <!-- CSS PARTAGE : editeur + site publie + export HTML (garantit un rendu identique) -->
 <style id="shared-css">
@@ -77,7 +77,7 @@
 </style>
 
 <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Arial, sans-serif; scrollbar-gutter: stable; }
     body { display: flex; background: #1e1e1e; color: white; user-select: none; }
     * { -webkit-tap-highlight-color: transparent; }
 
@@ -89,25 +89,25 @@
     .auth-switch { margin-top: 14px; font-size: 12px; color: #aaa; cursor: pointer; }
     .auth-sep { margin: 18px 0 10px; border-top: 1px solid #444; padding-top: 12px; font-size: 12px; color: #888; }
 
-    #control-panel { width: 440px; background: #2d2d2d; padding: 20px; box-sizing: border-box; overflow-y: auto; border-right: 1px solid #444; display: none; }
+    #control-panel { width: 440px; flex: 0 0 440px; background: #2d2d2d; padding: 20px; box-sizing: border-box; overflow-y: scroll; overflow-x: hidden; border-right: 1px solid #444; display: none; scrollbar-gutter: stable; }
     #control-panel h2 { margin: 0 0 10px; font-size: 17px; }
     .control-section { background: #383838; padding: 12px; border-radius: 6px; margin-bottom: 14px; }
     .control-section label { display: block; margin-bottom: 5px; font-size: 13px; color: #ccc; }
     .control-section input, .control-section select, .control-section textarea {
-        width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #555; background: #222; color: #fff; border-radius: 4px; margin-bottom: 8px; font-family: inherit;
+        width: 100%; max-width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #555; background: #222; color: #fff; border-radius: 4px; margin-bottom: 8px; font-family: inherit;
     }
     .btn-action { width: 100%; padding: 9px; background: #007acc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; }
     .btn-action:hover { background: #005999; }
     .btn-publish { width: 100%; padding: 12px; background: #28a745; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 16px; }
     .row2 { display: flex; gap: 8px; }
-    .row2 > * { flex: 1; }
+    .row2 > * { flex: 1; min-width: 0; }
     .hint { font-size: 11px; color: #888; margin: 4px 0 8px; }
     .page-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
     .page-tabs button { flex: 1 1 30%; padding: 7px; background: #444; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
     .page-tabs button.active { background: #007acc; }
     .chip { display: inline-block; padding: 4px 8px; background: #222; border: 1px solid #555; border-radius: 20px; font-size: 11px; margin: 0 4px 4px 0; }
 
-    #preview-area { flex-grow: 1; padding: 30px; display: flex; justify-content: center; align-items: center; box-sizing: border-box; background: #121212; position: relative; }
+    #preview-area { flex-grow: 1; min-width: 0; padding: 30px; display: flex; justify-content: center; align-items: center; box-sizing: border-box; background: #121212; position: relative; }
     #stage-wrap { position: relative; box-shadow: 0 6px 30px rgba(0,0,0,.6); border-radius: 4px; overflow: hidden; }
     #page-canvas { background: #fff; color: #000; }
     .el.hoverable:hover { outline: 2px dashed #007acc; outline-offset: 2px; }
@@ -135,7 +135,9 @@
     #micon-pos.pos-top .micon-glyph { transform: rotate(180deg); }
     #mobile-actions-bar { display: none; }
 
-    @media (max-width: 860px) {
+    /* Le mode mobile ne se declenche QUE sur un vrai ecran tactile etroit (telephone/tablette),
+       jamais sur un ordinateur avec souris, meme si la fenetre est redimensionnee/etroite. */
+    @media (max-width: 860px) and (pointer: coarse) {
         html, body { height: 100vh; overflow: hidden; }
         body { flex-direction: column; }
         #mobile-actions-bar { display: flex; gap: 6px; position: absolute; top: 10px; right: 10px; z-index: 500; }
@@ -144,7 +146,7 @@
         #preview-area { width: 100%; flex: 1 1 auto; min-height: 0; padding: 10px; order: 1; }
         body.app-active #mobile-icon-bar { display: flex; }
         #mobile-icon-bar { order: 2; }
-        #control-panel { width: 100%; max-width: 100%; border-right: none; order: 3; flex-shrink: 0; height: 0; max-height: 50vh; padding: 0 18px; overflow-y: auto; overflow-x: hidden; transition: height .22s ease, padding .22s ease; }
+        #control-panel { width: 100%; max-width: 100%; flex-basis: auto; border-right: none; order: 3; flex-shrink: 0; height: 0; max-height: 50vh; padding: 0 18px; overflow-y: auto; overflow-x: hidden; transition: height .22s ease, padding .22s ease; }
         body.mobile-sheet-open #control-panel { height: 50vh; padding: 16px 18px; }
         #control-panel > [data-tool], #control-panel > h2, #control-panel > .hint, #control-panel > .btn-publish, #control-panel > .update-badge, #control-panel > div:first-child { display: none !important; }
         body.mobile-sheet-open #control-panel > [data-tool].tool-active { display: block !important; }
@@ -153,6 +155,12 @@
         body.panel-top #preview-area { order: 3; }
         .auth-box { width: 88vw; max-width: 340px; }
         .control-section input, .control-section select, .control-section textarea, .auth-box input, .auth-box select { font-size: 16px; }
+    }
+
+    /* Sur un petit ecran tactile en desactivant volontairement pointer:coarse (rare), on garde
+       quand meme un filet de securite tres etroit pour ne pas casser l'affichage. */
+    @media (max-width: 480px) and (pointer: fine) {
+        #control-panel { width: 320px; flex-basis: 320px; }
     }
 </style>
 </head>
@@ -166,7 +174,7 @@
         <button onclick="handleAuth()" id="auth-btn">Se connecter</button>
         <div class="auth-switch" onclick="toggleAuthMode()" id="auth-switch-text">Pas de compte ? S'inscrire</div>
         <div class="auth-sep">Visiter un site publie</div>
-        <input type="text" id="visit-url" placeholder="[pseudo.nom-du-site](https://pseudo.nom-du-site/)">
+        <input type="text" id="visit-url" placeholder="pseudo.nom-du-site/">
         <button onclick="visitSiteByUrl()" style="background:#6c5ce7;">Ouvrir ce site</button>
     </div>
 </div>
@@ -347,7 +355,7 @@ Element 5</textarea>
         <label style="color:#74b9ff; font-weight:bold;">Messagerie / Formulaire de contact</label>
         <input type="text" id="new-form-title" value="Ecris-moi">
         <label>Envoyer les messages vers ton appli (URL webhook) :</label>
-        <input type="text" id="site-webhook" placeholder="[mon-appli.fr](https://mon-appli.fr/api/messages)" oninput="setWebhook(this.value)">
+        <input type="text" id="site-webhook" placeholder="https://mon-appli.fr/api/messages" oninput="setWebhook(this.value)">
         <button class="btn-action" onclick="addElement('form')">Ajouter le Formulaire</button>
         <div class="hint">Chaque message est envoye en POST JSON {site, page, nom, email, message, date} et garde une copie dans ta boite locale.</div>
     </div>
@@ -537,7 +545,7 @@ function rtVideoNode(el) {
         var p = 'rel=0&playsinline=1&modestbranding=1&enablejsapi=1';
         if (auto) p += '&autoplay=1&mute=1';
         if (el.loop) p += '&loop=1&playlist=' + id;
-        f.src = '[youtube.com](https://www.youtube.com/embed/)' + id + '?' + p;
+        f.src = 'https://www.youtube.com/embed/' + id + '?' + p;
         f.style.width = '100%'; f.style.height = '100%'; f.style.border = 'none'; f.style.borderRadius = '6px';
         f.setAttribute('allow', 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen');
         f.setAttribute('allowfullscreen', 'true');
@@ -844,7 +852,7 @@ function saveUserData() {
 /* ---------- Reglages globaux ---------- */
 function syncPanelFromProject() {
     var fs = document.getElementById('site-font');
-    if (!fs.options.length) FONTS.forEach(function (f) { var o = document.createElement('option'); o.value = f[0]; o.text = f[1]; o.style.fontFamily = f[0]; fs.appendChild(o); });
+    if (!fs.options.length) FONTS.forEach(function (f) { var o = document.createElement('option'); o.value = f[0]; o.text = f[1]; fs.appendChild(o); });
     fs.value = project.font;
     document.getElementById('site-format').value = project.format;
     document.getElementById('site-langs').value = project.langs.join(',');
@@ -911,7 +919,6 @@ function switchPage(pid) {
     renderCanvas();
 }
 function updateTargetSelects() {
-    ['new-btn-target', 'new-img-target'].concat([].slice.call(document.querySelectorAll('.edit-target')).map(function (e) { return e.id || e; })).forEach(function () { });
     var list = [document.getElementById('new-btn-target'), document.getElementById('new-img-target')];
     [].slice.call(document.querySelectorAll('.edit-target')).forEach(function (s) { list.push(s); });
     list.forEach(function (s) {
@@ -1527,7 +1534,7 @@ function exportSiteHTML() {
         'window.addEventListener("resize", draw); draw();';
     var html = '<!DOCTYPE html>\n<html lang="' + project.langs[0] + '">\n<head>\n<meta charset="UTF-8">\n' +
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>' + esc(project.siteName) + '</title>\n' +
-        '<link href="[fonts.googleapis.com](https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Bebas+Neue&family=Orbitron:wght@500;800&family=Playfair+Display:wght@600&family=Press+Start+2P&display=swap)" rel="stylesheet">\n' +
+        '<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Bebas+Neue&family=Orbitron:wght@500;800&family=Playfair+Display:wght@600&family=Press+Start+2P&display=swap" rel="stylesheet">\n' +
         '<style>html,body{margin:0;height:100%;background:#101014;overflow:hidden;}#vp{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}\n' + css + '</style>\n</head>\n<body>\n' +
         '<div id="vp"><div id="wrap" style="position:relative;"><div id="cv" class="stage"></div></div></div>\n' +
         '<scr' + 'ipt>\nvar PROJECT = ' + JSON.stringify(project) + ';\n' + fns + '\n' + boot + '\n</scr' + 'ipt>\n</body>\n</html>';
