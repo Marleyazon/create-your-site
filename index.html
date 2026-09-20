@@ -457,7 +457,6 @@ Element 5</textarea>
         <label style="color:#00d2d3; font-weight:bold; margin-top:10px;">Onglet Script — tes scripts (depose ici)</label>
         <div id="script-library-list" ondragover="onScriptDragOver(event)" ondragleave="onScriptDragLeave(event)" ondrop="onScriptDrop(event)"
              style="max-height:260px; overflow:auto; min-height:60px; border:2px dashed #444; border-radius:6px; padding:4px; transition:border-color .15s, background .15s;"></div>
-        <button class="btn-action" style="background:#0984e3;" onclick="goToScriptPage()">Voir la page "Script" du site</button>
     </div>
 
     <div class="hint">Raccourcis : Ctrl+Z annuler · Ctrl+W retablir · Ctrl+C copier · Ctrl+V coller (meme position, meme sur une autre page) · Ctrl+A tout selectionner · Ctrl+D dupliquer · Suppr effacer.</div>
@@ -1030,15 +1029,6 @@ function renamePage() {
     var n = prompt('Nouveau nom de la page :', project.pages[currentPage].name);
     if (!n) return;
     saveState(); project.pages[currentPage].name = n; rebuildPageTabs(); renderCanvas(); saveUserData();
-}
-function goToScriptPage() {
-    var found = Object.keys(project.pages).find(function (pid) { return (project.pages[pid].name || '').trim().toLowerCase() === 'script'; });
-    if (found) { switchPage(found); return; }
-    saveState();
-    pageCount = Math.max(pageCount, Object.keys(project.pages).length) + 1;
-    var id = 'page' + pageCount;
-    project.pages[id] = { name: 'Script', bg: '#1e1e1e', bgImg: '', grid: false, elements: [] };
-    switchPage(id); saveUserData();
 }
 
 /* ---------- Bibliotheque de scripts (espace de travail -> liste) ---------- */
