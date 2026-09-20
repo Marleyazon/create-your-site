@@ -453,7 +453,8 @@ Element 5</textarea>
             ⠿ Attrape et glisse ce bloc jusque dans la liste "Onglet Script" ci-dessous
         </div>
         <button class="btn-action" style="background:#e17055;" onclick="addScriptToLibrary()">Ou clique ici pour l'ajouter directement</button>
-        <div class="hint">Ton script est ajoute a la liste ci-dessous. Important : ceci affiche ton code Lua comme du texte — ce n'est pas un moteur d'execution. Aucun navigateur ne peut faire tourner du Lua ; pour l'executer, colle-le dans Roblox Studio (ou l'environnement Lua concerne).</div>
+        <div class="hint">Ton script est ajoute a la liste ci-dessous. Le code <b>Lua</b> s'affiche comme du texte (Roblox uniquement, pas de moteur d'execution dans un navigateur). Le code <b>JavaScript</b> s'execute pour de vrai sur le site publie/exporte, sans rien afficher aux visiteurs — utilise <code>Site.get("NomDeLElement")</code> pour recuperer un element par le nom que tu lui donnes dans "Modifier" (nom jamais visible sur le site, comme dans Roblox).</div>
+        <div class="hint" style="border-top:1px solid #333; padding-top:6px;">Astuce souris : clique-glisse sur une zone vide du canevas pour selectionner plusieurs elements a la fois (Ctrl+C / Ctrl+V pour les copier-coller ensemble).</div>
 
         <label style="color:#00d2d3; font-weight:bold; margin-top:10px;">Onglet Script — tes scripts (depose ici)</label>
         <div id="script-library-list" ondragover="onScriptDragOver(event)" ondragleave="onScriptDragLeave(event)" ondrop="onScriptDrop(event)"
@@ -697,10 +698,23 @@ function rtBuild(el, api) {
         node.onclick = function (e) { e.stopPropagation(); if (el.link) api.openLink(el.link); };
 
     } else if (el.type === 'code') {
-        node = document.createElement('pre');
-        node.textContent = el.content;
-        node.className = 'no-drag';
-        node.style.cssText = 'width:100%;height:100%;margin:0;padding:12px;border-radius:6px;overflow:auto;background:' + (el.bgColor || '#1e1e1e') + ';color:' + el.color + ';font-family:monospace;font-size:' + (el.size || 14) + 'px;';
+        if (el.lang === 'js' && !api.editable) {
+            // S'execute reellement sur le site publie/exporte, sans rien afficher aux visiteurs.
+            api.pendingScripts.push(el.content);
+            node = document.createElement('div');
+            node.style.cssText = 'width:0;height:0;overflow:hidden;';
+        } else {
+            node = document.createElement('pre');
+            node.textContent = el.content;
+            node.className = 'no-drag';
+            node.style.cssText = 'width:100%;height:100%;margin:0;padding:12px;border-radius:6px;overflow:auto;background:' + (el.bgColor || '#1e1e1e') + ';color:' + el.color + ';font-family:monospace;font-size:' + (el.size || 14) + 'px;';
+            if (el.lang === 'js' && api.editable) {
+                var badge = document.createElement('div');
+                badge.textContent = '⚡ S\'executera reellement sur le site publie (invisible pour les visiteurs)';
+                badge.style.cssText = 'font-family:Arial,sans-serif;font-size:10px;color:#fdcb6e;margin-bottom:6px;';
+                node.insertBefore(badge, node.firstChild);
+            }
+        }
 
     } else if (el.type === 'lang') {
         node = document.createElement('div');
@@ -764,6 +778,10 @@ function rtRenderPage(canvas, project, pageId, api) {
     if (page.grid) canvas.classList.add('grid-bg'); else canvas.classList.remove('grid-bg');
     canvas.style.backgroundImage = (page.bgImg && page.bgImg.trim() !== '') ? "url('" + page.bgImg + "')" : (page.grid ? '' : 'none');
 
+    var nameMap = {};
+    var pendingScripts = [];
+    api.pendingScripts = pendingScripts;
+
     var nodes = [];
     (page.elements || []).forEach(function (el, i) {
         var div = document.createElement('div');
@@ -776,7 +794,23 @@ function rtRenderPage(canvas, project, pageId, api) {
         div.appendChild(rtBuild(el, api));
         canvas.appendChild(div);
         nodes.push(div);
+        if (el.name) nameMap[el.name] = div;
     });
+
+    // Le nom donne a un element (visible seulement dans l'editeur, jamais affiche aux visiteurs)
+    // sert a le retrouver depuis un bloc de code JavaScript, comme les noms d'objets dans Roblox.
+    window.Site = {
+        get: function (name) { return nameMap[name] || null; },
+        content: function (name) { var n = nameMap[name]; return n ? n.firstElementChild : null; },
+        all: function () { return Object.assign({}, nameMap); },
+        page: pageId
+    };
+    if (!api.editable) {
+        pendingScripts.forEach(function (code) {
+            try { new Function('Site', code)(window.Site); }
+            catch (err) { console.error('Erreur dans un bloc de code JavaScript du site :', err); }
+        });
+    }
     return nodes;
 }
 
@@ -1372,7 +1406,8 @@ function renderCanvas(rebuildEdit) {
             }
         }
     });
-    canvas.onmousedown = function (e) { if (e.target === canvas) { sel = []; renderCanvas(); } };
+    canvas.onmousedown = function (e) { if (e.target === canvas) startMarquee(e); };
+    canvas.ontouchstart = function (e) { if (e.target === canvas) startMarquee(e); };
     if (rebuildEdit) renderEditPanel();
 }
 window.addEventListener('resize', function () { if (currentUser) renderCanvas(false); if (pubProject) renderPub(); });
@@ -1381,6 +1416,47 @@ function ptr(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
     return { x: e.clientX, y: e.clientY };
+}
+function startMarquee(e) {
+    var canvasEl = document.getElementById('page-canvas');
+    var startPt = ptr(e);
+    var moved = false;
+    var THRESH = 4;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:absolute;border:1px dashed #007acc;background:rgba(0,122,204,0.15);pointer-events:none;z-index:900;display:none;';
+    canvasEl.appendChild(box);
+
+    function move(ev) {
+        if (ev.cancelable) ev.preventDefault();
+        var p = ptr(ev);
+        var dxScreen = p.x - startPt.x, dyScreen = p.y - startPt.y;
+        if (!moved && (Math.abs(dxScreen) > THRESH || Math.abs(dyScreen) > THRESH)) moved = true;
+        if (!moved) return;
+        box.style.display = 'block';
+        var canvasRect = canvasEl.getBoundingClientRect();
+        var x1c = Math.min(startPt.x, p.x) - canvasRect.left, x2c = Math.max(startPt.x, p.x) - canvasRect.left;
+        var y1c = Math.min(startPt.y, p.y) - canvasRect.top, y2c = Math.max(startPt.y, p.y) - canvasRect.top;
+        box.style.left = (x1c / fitScale) + 'px'; box.style.top = (y1c / fitScale) + 'px';
+        box.style.width = ((x2c - x1c) / fitScale) + 'px'; box.style.height = ((y2c - y1c) / fitScale) + 'px';
+    }
+    function end(ev) {
+        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchmove', move); document.removeEventListener('touchend', end);
+        var boxRect = box.getBoundingClientRect();
+        box.remove();
+        if (!moved) { sel = []; renderCanvas(); return; }
+        var picked = [];
+        els().forEach(function (el, i) {
+            var node = document.querySelector('.el[data-idx="' + i + '"]');
+            if (!node) return;
+            var r = node.getBoundingClientRect();
+            if (r.left < boxRect.right && r.right > boxRect.left && r.top < boxRect.bottom && r.bottom > boxRect.top) picked.push(i);
+        });
+        sel = picked;
+        renderCanvas();
+    }
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', end);
 }
 function startDrag(e) {
     if (e.target.classList && e.target.classList.contains('rz-handle')) return;
