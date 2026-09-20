@@ -115,6 +115,7 @@
     .el.editable { cursor: move; touch-action: none; }
     .no-drag { touch-action: auto; cursor: auto; }
     .rz-handle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; background: #ffcc00; border: 2px solid #000; border-radius: 3px; cursor: nwse-resize; z-index: 50; touch-action: none; }
+    .mv-handle { position: absolute; left: 50%; top: -26px; transform: translateX(-50%); background: #ffcc00; color: #000; font-weight: bold; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: move; z-index: 50; touch-action: none; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
     .align-line-v { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4757; z-index: 999; pointer-events: none; display: none; }
     .align-line-h { position: absolute; left: 0; right: 0; height: 1px; background: #ff4757; z-index: 999; pointer-events: none; display: none; }
 
@@ -1346,6 +1347,7 @@ function renderCanvas(rebuildEdit) {
     var lh = document.createElement('div'); lh.className = 'align-line-h'; lh.id = 'aline-h';
     canvas.appendChild(lv); canvas.appendChild(lh);
 
+    var NO_DRAG_TYPES = ['code', 'paragraph', 'column', 'form'];
     nodes.forEach(function (div, i) {
         div.classList.add('hoverable', 'editable');
         if (sel.indexOf(i) > -1) div.classList.add('sel');
@@ -1358,6 +1360,16 @@ function renderCanvas(rebuildEdit) {
             h.addEventListener('mousedown', function (e) { startResize(e, i); });
             h.addEventListener('touchstart', function (e) { startResize(e, i); }, { passive: false });
             div.appendChild(h);
+
+            if (NO_DRAG_TYPES.indexOf((els()[i] || {}).type) > -1) {
+                var mv = document.createElement('div');
+                mv.className = 'mv-handle';
+                mv.innerText = '⠿ Deplacer';
+                mv.title = 'Cliquer-glisser ici pour deplacer ce bloc';
+                mv.addEventListener('mousedown', function (e) { e.stopPropagation(); beginElementMove(e, i); });
+                mv.addEventListener('touchstart', function (e) { e.stopPropagation(); beginElementMove(e, i); }, { passive: false });
+                div.appendChild(mv);
+            }
         }
     });
     canvas.onmousedown = function (e) { if (e.target === canvas) { sel = []; renderCanvas(); } };
@@ -1371,11 +1383,20 @@ function ptr(e) {
     return { x: e.clientX, y: e.clientY };
 }
 function startDrag(e) {
-    if (e.target.closest && e.target.closest('.no-drag')) return;
     if (e.target.classList && e.target.classList.contains('rz-handle')) return;
+    if (e.target.classList && e.target.classList.contains('mv-handle')) return;
     var div = e.currentTarget;
     var idx = parseInt(div.dataset.idx, 10);
+    var insideNoDrag = e.target.closest && e.target.closest('.no-drag');
     if (sel.indexOf(idx) === -1) { sel = (e.shiftKey || e.ctrlKey) ? sel.concat([idx]) : [idx]; renderCanvas(); return; }
+    // Deja selectionne : si on clique dans du contenu interactif (code/paragraphe/colonne/formulaire),
+    // on laisse ce contenu geren son propre clic (defilement, selection de texte, saisie) au lieu de le deplacer.
+    // Une poignee "⠿ Deplacer" dediee apparait alors pour le deplacer.
+    if (insideNoDrag) return;
+    beginElementMove(e, idx);
+}
+function beginElementMove(e, idx) {
+    if (sel.indexOf(idx) === -1) sel = [idx];
     if (e.cancelable) e.preventDefault();
     saveState();
     var start = ptr(e);
