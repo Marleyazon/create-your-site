@@ -213,14 +213,22 @@
     </div>
 
     <div class="control-section" data-tool="project" style="border:1px solid #ffcc00;">
-        <label style="color:#ffcc00; font-weight:bold;">Projet &amp; Fichiers</label>
+        <label style="color:#ffcc00; font-weight:bold;">Mes Projets</label>
+        <select id="project-select" onchange="switchProject(this.value)"></select>
         <div class="row2">
+            <button class="btn-action" style="margin-top:0; background:#00b894;" onclick="createNewProject()">+ Nouveau projet</button>
+            <button class="btn-action" style="margin-top:0; background:#636e72;" onclick="renameProject()">Renommer</button>
+        </div>
+        <button class="btn-action" style="background:#ff4757;" onclick="deleteProject()">Supprimer ce projet</button>
+        <div id="save-indicator" style="font-size:11px; margin-top:8px; color:#00b894;">● Sauvegarde automatique active</div>
+        <div class="hint">Chaque projet a ses propres pages, se sauvegarde tout seul en continu (a chaque action + toutes les 6 secondes), meme si tu fermes l'onglet sans faire expres.</div>
+        <div class="row2" style="margin-top:6px;">
             <button class="btn-action" style="margin-top:0; background:#6c5ce7;" onclick="exportProjectJSON()">Exporter JSON</button>
             <button class="btn-action" style="margin-top:0; background:#a29bfe; color:#000;" onclick="document.getElementById('import-file-input').click()">Importer JSON</button>
         </div>
         <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importProjectJSON(this)">
         <button class="btn-action" style="background:#00b894;" onclick="exportSiteHTML()">Exporter le site en HTML (hebergeable)</button>
-        <div class="hint">Le fichier HTML exporte est autonome : envoie-le sur un hebergeur pour avoir une vraie adresse en ligne.</div>
+        <div class="hint">L'export JSON/HTML reste le meilleur moyen de garder une copie hors du navigateur (double securite en plus de la sauvegarde automatique).</div>
     </div>
 
     <div data-tool="pages">
@@ -238,6 +246,28 @@
             <option value="square">Carre (900 x 900)</option>
         </select>
         <div class="hint">Le format choisi est exactement celui du site publie.</div>
+    </div>
+
+    <div class="control-section" data-tool="grid" style="border:1px solid #74b9ff;">
+        <label style="color:#74b9ff; font-weight:bold;">Grille d'alignement</label>
+        <div class="page-tabs">
+            <button id="btn-mode-libre" class="active" onclick="setSnapMode('free')" type="button">Vue libre</button>
+            <button id="btn-mode-grille" onclick="setSnapMode('grid')" type="button">Mode grille</button>
+        </div>
+        <label>Espacement : <span id="val-grid-size" style="color:#74b9ff;font-weight:bold;">20px</span></label>
+        <input type="range" id="grid-size-input" min="5" max="100" step="5" value="20" oninput="updateGridSize(this.value)">
+        <label><input type="checkbox" id="grid-toggle" style="width:auto;" onchange="toggleGridBackground(this.checked)"> Afficher la grille sur la page</label>
+    </div>
+
+    <div class="control-section" data-tool="style" style="border:1px solid #ff4757;">
+        <label style="color:#ff4757; font-weight:bold;">Personnalite &amp; Theme</label>
+        <select id="preset-personality" onchange="applyPersonalityPreset(this.value)">
+            <option value="none">-- Choisir un style --</option>
+            <option value="formet">Le Formet (ultra stylé &amp; dynamique)</option>
+            <option value="cyberpunk">Cyberpunk Neon</option>
+            <option value="retro">Retro Arcade</option>
+            <option value="luxe">Minimaliste Luxe</option>
+        </select>
     </div>
 
     <div class="control-section" data-tool="font" style="border:1px solid #fd79a8;">
@@ -259,6 +289,11 @@
         <select id="edit-lang" onchange="setEditLang(this.value)"></select>
         <button class="btn-action" onclick="addElement('lang')">Ajouter le selecteur de langue sur la page</button>
         <div class="hint">Selectionne un texte puis remplis ses traductions dans "Modifier".</div>
+    </div>
+
+    <div class="control-section" id="edit-section" data-tool="edit" style="border:2px solid #ffcc00; display:none;">
+        <label style="color:#ffcc00; font-weight:bold;">Element selectionne</label>
+        <div id="edit-inputs-container"></div>
     </div>
 
     <div class="control-section" data-tool="text">
@@ -389,14 +424,6 @@ Element 5</textarea>
         <button class="btn-action" onclick="addElement('navbar')">Ajouter la Barre</button>
     </div>
 
-    <div class="control-section" data-tool="code" style="border:1px solid #00d2d3;">
-        <label style="color:#00d2d3; font-weight:bold;">Bloc de Code</label>
-        <textarea id="new-code-val" rows="3">// Votre code ici...</textarea>
-        <label>Couleur du texte :</label>
-        <input type="color" id="new-code-color" value="#00ffcc">
-        <button class="btn-action" onclick="addElement('code')">Ajouter le Bloc</button>
-    </div>
-
     <div class="control-section" data-tool="bg">
         <label>Fond de la page</label>
         <div class="row2">
@@ -407,31 +434,21 @@ Element 5</textarea>
         <input type="file" id="page-bg-file" accept="image/*" onchange="updatePageBgFile(this)">
     </div>
 
-    <div class="control-section" data-tool="grid" style="border:1px solid #74b9ff;">
-        <label style="color:#74b9ff; font-weight:bold;">Grille d'alignement</label>
-        <div class="page-tabs">
-            <button id="btn-mode-libre" class="active" onclick="setSnapMode('free')" type="button">Vue libre</button>
-            <button id="btn-mode-grille" onclick="setSnapMode('grid')" type="button">Mode grille</button>
-        </div>
-        <label>Espacement : <span id="val-grid-size" style="color:#74b9ff;font-weight:bold;">20px</span></label>
-        <input type="range" id="grid-size-input" min="5" max="100" step="5" value="20" oninput="updateGridSize(this.value)">
-        <label><input type="checkbox" id="grid-toggle" style="width:auto;" onchange="toggleGridBackground(this.checked)"> Afficher la grille sur la page</label>
-    </div>
-
-    <div class="control-section" data-tool="style" style="border:1px solid #ff4757;">
-        <label style="color:#ff4757; font-weight:bold;">Personnalite &amp; Theme</label>
-        <select id="preset-personality" onchange="applyPersonalityPreset(this.value)">
-            <option value="none">-- Choisir un style --</option>
-            <option value="formet">Le Formet (ultra stylé &amp; dynamique)</option>
-            <option value="cyberpunk">Cyberpunk Neon</option>
-            <option value="retro">Retro Arcade</option>
-            <option value="luxe">Minimaliste Luxe</option>
+    <div class="control-section" data-tool="code" style="border:1px solid #00d2d3;">
+        <label style="color:#00d2d3; font-weight:bold;">Bloc de Code</label>
+        <label>Langage :</label>
+        <select id="new-code-lang">
+            <option value="lua">Lua</option>
+            <option value="js">JavaScript</option>
+            <option value="html">HTML</option>
+            <option value="text">Texte brut</option>
         </select>
-    </div>
-
-    <div class="control-section" id="edit-section" data-tool="edit" style="border:2px solid #ffcc00; display:none;">
-        <label style="color:#ffcc00; font-weight:bold;">Element selectionne</label>
-        <div id="edit-inputs-container"></div>
+        <textarea id="new-code-val" rows="3">-- Votre code ici...</textarea>
+        <label>Couleur du texte :</label>
+        <input type="color" id="new-code-color" value="#00ffcc">
+        <button class="btn-action" onclick="addElement('code')">Ajouter le Bloc</button>
+        <button class="btn-action" style="background:#e17055;" onclick="goToScriptPage()">Aller a la page "Script" (la creer si besoin)</button>
+        <div class="hint">Important : ce bloc affiche ton code Lua comme du texte sur le site — c'est une vitrine, pas un moteur d'execution. Aucun navigateur ne peut faire tourner du Lua ; pour executer ce script il faut le coller dans Roblox Studio (ou l'environnement Lua concerne).</div>
     </div>
 
     <div class="hint">Raccourcis : Ctrl+Z annuler · Ctrl+W retablir · Ctrl+C copier · Ctrl+V coller (meme position, meme sur une autre page) · Ctrl+A tout selectionner · Ctrl+D dupliquer · Suppr effacer.</div>
@@ -773,14 +790,17 @@ var published = JSON.parse(localStorage.getItem('site_builder_published') || '{}
 var inbox = JSON.parse(localStorage.getItem('site_builder_inbox') || '{}');
 
 var project = newProject();
+var activeProjectId = 'p1';
 var currentPage = 'page1', pageCount = 1;
 var sel = [], clipboard = [];
 var undoStack = [], redoStack = [];
 var snapMode = 'free', fitScale = 1;
 var pubProject = null, pubPage = 'page1', pubLang = 'fr', pubUrl = '';
+var autosaveTimer = null;
 
-function newProject() {
+function newProject(name) {
     return {
+        _meta: { name: name || 'Nouveau projet', created: new Date().toISOString() },
         siteName: 'mon-site', format: 'horizontal', font: 'Arial, sans-serif',
         langs: ['fr'], lang: 'fr', webhook: '', visibility: 'public', gridSize: 20,
         pages: { page1: { name: 'Page 1', bg: '#ffffff', bgImg: '', grid: false, elements: [] } }
@@ -818,34 +838,130 @@ function openSession(u) {
     document.getElementById('control-panel').style.display = 'block';
     document.body.classList.add('app-active');
     loadUserData();
+    startAutosaveLoop();
 }
 function logout() {
+    saveUserData();
     currentUser = null;
+    if (autosaveTimer) { clearInterval(autosaveTimer); autosaveTimer = null; }
     localStorage.removeItem('site_builder_last_session');
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('control-panel').style.display = 'none';
     document.body.classList.remove('app-active');
     closeMobileSheet();
 }
+function startAutosaveLoop() {
+    if (autosaveTimer) clearInterval(autosaveTimer);
+    // Filet de securite : sauvegarde toutes les 6 secondes en plus des sauvegardes
+    // declenchees a chaque action, au cas ou une action aurait ete manquee.
+    autosaveTimer = setInterval(function () { if (currentUser) saveUserData(); }, 6000);
+}
+window.addEventListener('beforeunload', function () { if (currentUser) saveUserData(); });
+document.addEventListener('visibilitychange', function () { if (currentUser && document.visibilityState === 'hidden') saveUserData(); });
+
+/* ---------- Plusieurs projets par compte ---------- */
+function ensureProjectStore() {
+    var store = userProjects[currentUser];
+    if (store && store.projects) return store;
+    if (store) {
+        // Migration depuis l'ancien format (un seul projet par compte)
+        var legacy = store.pages && !store.format ? Object.assign(newProject(), { pages: store.pages, visibility: store.visibility || 'public' }) : store;
+        legacy = Object.assign(newProject('Projet 1'), legacy);
+        if (!legacy._meta) legacy._meta = { name: 'Projet 1', created: new Date().toISOString() };
+        store = { activeId: 'p1', projects: { p1: legacy } };
+    } else {
+        store = { activeId: 'p1', projects: { p1: newProject('Projet 1') } };
+    }
+    userProjects[currentUser] = store;
+    return store;
+}
 function loadUserData() {
-    var saved = userProjects[currentUser];
-    if (saved) {
-        project = saved.pages && !saved.format ? Object.assign(newProject(), { pages: saved.pages, visibility: saved.visibility || 'public' }) : saved;
-        project = Object.assign(newProject(), project);
-        Object.keys(project.pages).forEach(function (pid, i) { if (!project.pages[pid].name) project.pages[pid].name = 'Page ' + (i + 1); });
-    } else { project = newProject(); }
+    var store = ensureProjectStore();
+    activeProjectId = store.activeId && store.projects[store.activeId] ? store.activeId : Object.keys(store.projects)[0];
+    project = Object.assign(newProject(), store.projects[activeProjectId]);
+    if (!project._meta) project._meta = { name: 'Projet 1', created: new Date().toISOString() };
+    Object.keys(project.pages).forEach(function (pid, i) { if (!project.pages[pid].name) project.pages[pid].name = 'Page ' + (i + 1); });
     pageCount = Object.keys(project.pages).length;
     currentPage = Object.keys(project.pages)[0];
     undoStack = []; redoStack = []; sel = [];
     syncPanelFromProject();
+    rebuildProjectsList();
     rebuildPageTabs();
     switchPage(currentPage);
     renderInbox();
 }
+function rebuildProjectsList() {
+    var sel1 = document.getElementById('project-select');
+    if (!sel1) return;
+    var store = ensureProjectStore();
+    sel1.innerHTML = '';
+    Object.keys(store.projects).forEach(function (pid) {
+        var o = document.createElement('option');
+        o.value = pid;
+        o.text = (store.projects[pid]._meta && store.projects[pid]._meta.name) || pid;
+        if (pid === activeProjectId) o.selected = true;
+        sel1.appendChild(o);
+    });
+}
+function switchProject(pid) {
+    if (!currentUser || pid === activeProjectId) return;
+    saveUserData();
+    var store = ensureProjectStore();
+    if (!store.projects[pid]) return;
+    activeProjectId = pid;
+    store.activeId = pid;
+    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    loadUserData();
+}
+function createNewProject() {
+    var n = prompt('Nom du nouveau projet :', 'Projet ' + (Object.keys(ensureProjectStore().projects).length + 1));
+    if (!n) return;
+    saveUserData();
+    var store = ensureProjectStore();
+    var id = 'p' + (Date.now());
+    store.projects[id] = newProject(n);
+    store.activeId = id;
+    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    activeProjectId = id;
+    loadUserData();
+}
+function renameProject() {
+    var store = ensureProjectStore();
+    var n = prompt('Nouveau nom du projet :', project._meta.name);
+    if (!n) return;
+    project._meta.name = n;
+    saveUserData();
+    rebuildProjectsList();
+}
+function deleteProject() {
+    var store = ensureProjectStore();
+    var ids = Object.keys(store.projects);
+    if (ids.length <= 1) { alert('Il faut garder au moins un projet.'); return; }
+    if (!confirm('Supprimer definitivement le projet "' + project._meta.name + '" ? Cette action est irreversible.')) return;
+    delete store.projects[activeProjectId];
+    activeProjectId = Object.keys(store.projects)[0];
+    store.activeId = activeProjectId;
+    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    loadUserData();
+}
+function setSaveIndicator(ok) {
+    var el = document.getElementById('save-indicator');
+    if (!el) return;
+    if (ok) { el.style.color = '#00b894'; el.innerText = '● Sauvegarde automatique active'; }
+    else { el.style.color = '#ff4757'; el.innerText = '⚠ Espace de stockage plein — libere de la place (supprime des images/projets) sinon tes derniers changements ne seront pas gardes'; }
+}
 function saveUserData() {
     if (!currentUser) return;
-    userProjects[currentUser] = project;
-    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    var store = ensureProjectStore();
+    store.activeId = activeProjectId;
+    store.projects[activeProjectId] = project;
+    try {
+        localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+        setSaveIndicator(true);
+    } catch (e) {
+        setSaveIndicator(false);
+        return;
+    }
     if (published[siteUrl()]) { published[siteUrl()].project = JSON.parse(JSON.stringify(project)); localStorage.setItem('site_builder_published', JSON.stringify(published)); }
 }
 
@@ -904,6 +1020,15 @@ function renamePage() {
     if (!n) return;
     saveState(); project.pages[currentPage].name = n; rebuildPageTabs(); renderCanvas(); saveUserData();
 }
+function goToScriptPage() {
+    var found = Object.keys(project.pages).find(function (pid) { return (project.pages[pid].name || '').trim().toLowerCase() === 'script'; });
+    if (found) { switchPage(found); return; }
+    saveState();
+    pageCount = Math.max(pageCount, Object.keys(project.pages).length) + 1;
+    var id = 'page' + pageCount;
+    project.pages[id] = { name: 'Script', bg: '#1e1e1e', bgImg: '', grid: false, elements: [] };
+    switchPage(id); saveUserData();
+}
 function deletePage() {
     if (Object.keys(project.pages).length <= 1) { alert('Il faut au moins une page.'); return; }
     if (!confirm('Supprimer cette page ?')) return;
@@ -961,7 +1086,10 @@ function snapV(v) { return snapMode === 'grid' ? Math.round(v / project.gridSize
 function addElement(type) {
     saveState();
     var size = rtStageSize(project.format);
-    var el = { type: type, x: snapV(size.w * 0.12), y: snapV(size.h * 0.15), w: null, h: null, scale: 1, rotation: 0, opacity: 1, animation: 'none', decal: false, z: els().length + 1, i18n: {} };
+    var NAMES = { navbar: 'Navigation', text: 'Texte', paragraph: 'Paragraphe', button: 'Bouton', column: 'Colonne', shape: 'Forme', image: 'Image', video: 'Video', form: 'Formulaire', social: 'Social', code: 'Code', lang: 'Langues' };
+    var baseName = NAMES[type] || type;
+    var countSame = els().filter(function (e) { return e.type === type; }).length + 1;
+    var el = { type: type, name: baseName + ' ' + countSame, x: snapV(size.w * 0.12), y: snapV(size.h * 0.15), w: null, h: null, scale: 1, rotation: 0, opacity: 1, animation: 'none', decal: false, z: els().length + 1, i18n: {} };
 
     if (type === 'navbar') {
         el.title = document.getElementById('new-nav-title').value;
@@ -1010,6 +1138,7 @@ function addElement(type) {
     } else if (type === 'code') {
         el.content = document.getElementById('new-code-val').value;
         el.color = document.getElementById('new-code-color').value;
+        el.lang = document.getElementById('new-code-lang').value;
         el.bgColor = '#1e1e1e'; el.size = 14; el.w = 420; el.h = 180;
     } else if (type === 'form') {
         el.title = document.getElementById('new-form-title').value;
@@ -1053,6 +1182,16 @@ function duplicateSelection() {
     sel.forEach(function (i) { var c = JSON.parse(JSON.stringify(els()[i])); c.x = snapV(c.x + 24); c.y = snapV(c.y + 24); c.z = els().length + 1; els().push(c); });
     sel = []; for (var k = start; k < els().length; k++) sel.push(k);
     renderCanvas(); saveUserData();
+}
+function moveSelectionToPage(targetPageId) {
+    if (!sel.length || !project.pages[targetPageId] || targetPageId === currentPage) return;
+    saveState();
+    var moving = sel.map(function (i) { return els()[i]; });
+    project.pages[currentPage].elements = els().filter(function (_, i) { return sel.indexOf(i) === -1; });
+    moving.forEach(function (elm) { elm.z = project.pages[targetPageId].elements.length + 1; project.pages[targetPageId].elements.push(elm); });
+    sel = [];
+    switchPage(targetPageId);
+    saveUserData();
 }
 function deleteSelection() {
     if (!sel.length) return;
@@ -1186,11 +1325,14 @@ function startResize(e, idx) {
     var node = document.querySelector('.el[data-idx="' + idx + '"]');
     var start = ptr(e);
     var w0 = el.w || node.offsetWidth, h0 = el.h || node.offsetHeight;
+    var THRESH = 3; // px reels avant d'appliquer le redimensionnement (evite les sauts accidentels)
     function move(ev) {
         if (ev.cancelable) ev.preventDefault();
         var p = ptr(ev);
-        el.w = Math.max(30, snapV(w0 + (p.x - start.x) / fitScale));
-        el.h = Math.max(20, snapV(h0 + (p.y - start.y) / fitScale));
+        var ddx = p.x - start.x, ddy = p.y - start.y;
+        if (Math.abs(ddx) < THRESH && Math.abs(ddy) < THRESH) return;
+        el.w = Math.max(30, snapV(w0 + ddx / fitScale));
+        el.h = Math.max(20, snapV(h0 + ddy / fitScale));
         node.style.width = el.w + 'px'; node.style.height = el.h + 'px';
     }
     function end() {
@@ -1228,6 +1370,7 @@ function renderEditPanel() {
     var fontOpts = FONTS.map(function (f) { return '<option value="' + f[0] + '"' + (el.font === f[0] ? ' selected' : '') + '>' + f[1] + '</option>'; }).join('');
 
     var common =
+        '<label>Nom de l\'element :</label><input type="text" value="' + esc(el.name || '') + '" oninput="upd(\'name\', this.value)">' +
         '<div class="row2"><div><label>X</label><input type="number" value="' + Math.round(el.x) + '" oninput="upd(\'x\', parseInt(this.value)||0)"></div>' +
         '<div><label>Y</label><input type="number" value="' + Math.round(el.y) + '" oninput="upd(\'y\', parseInt(this.value)||0)"></div></div>' +
         '<div class="row2"><div><label>Largeur (vide = auto)</label><input type="number" value="' + (el.w || '') + '" oninput="upd(\'w\', this.value?parseInt(this.value):null)"></div>' +
@@ -1313,9 +1456,17 @@ function renderEditPanel() {
             '<div class="row2"><div><label>Fond</label><input type="color" value="' + (el.bgColor || '#ffffff') + '" oninput="upd(\'bgColor\', this.value)"></div>' +
             '<div><label>Bouton</label><input type="color" value="' + (el.btnColor || '#0984e3') + '" oninput="upd(\'btnColor\', this.value)"></div></div>' + common;
     } else if (el.type === 'code') {
-        h = '<label>Code :</label><textarea rows="5" oninput="upd(\'content\', this.value)">' + esc(el.content) + '</textarea>' +
+        var pageOptsCode = Object.keys(project.pages).filter(function (p) { return p !== currentPage; })
+            .map(function (p) { return '<option value="' + p + '">' + (project.pages[p].name || p) + '</option>'; }).join('');
+        h = '<label>Langage :</label><select onchange="upd(\'lang\', this.value)">' +
+            ['lua:Lua', 'js:JavaScript', 'html:HTML', 'text:Texte brut'].map(function (o) { var p = o.split(':'); return '<option value="' + p[0] + '"' + (el.lang === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select>' +
+            '<label>Code :</label><textarea rows="5" oninput="upd(\'content\', this.value)">' + esc(el.content) + '</textarea>' +
             '<div class="row2"><div><label>Texte</label><input type="color" value="' + el.color + '" oninput="upd(\'color\', this.value)"></div>' +
-            '<div><label>Fond</label><input type="color" value="' + (el.bgColor || '#1e1e1e') + '" oninput="upd(\'bgColor\', this.value)"></div></div>' + common;
+            '<div><label>Fond</label><input type="color" value="' + (el.bgColor || '#1e1e1e') + '" oninput="upd(\'bgColor\', this.value)"></div></div>' +
+            (pageOptsCode ? ('<label style="color:#00d2d3;">Deplacer ce bloc vers un autre onglet/page :</label>' +
+                '<div class="row2"><select id="move-code-target">' + pageOptsCode + '</select>' +
+                '<button class="btn-action" style="margin-top:0;" onclick="moveSelectionToPage(document.getElementById(\'move-code-target\').value)">Deplacer</button></div>' +
+                '<div class="hint">Astuce : cree une page nommee "Script" (Renommer la page active) pour y ranger tes blocs de code Lua.</div>') : '') + common;
     } else if (el.type === 'social') {
         h = '<label>Lien :</label><input type="text" value="' + esc(el.link) + '" oninput="upd(\'link\', this.value)">' + common;
     } else {
@@ -1510,9 +1661,11 @@ function importProjectJSON(input) {
         try {
             var p = JSON.parse(e.target.result);
             saveState();
+            var oldName = project._meta ? project._meta.name : 'Projet importe';
             project = Object.assign(newProject(), p.pages ? p : { pages: p });
+            if (!p._meta) project._meta = { name: oldName, created: new Date().toISOString() };
             currentPage = Object.keys(project.pages)[0];
-            sel = []; syncPanelFromProject(); rebuildPageTabs(); switchPage(currentPage); saveUserData();
+            sel = []; syncPanelFromProject(); rebuildProjectsList(); rebuildPageTabs(); switchPage(currentPage); saveUserData();
             alert('Projet importe.');
         } catch (err) { alert('Fichier JSON invalide.'); }
     };
