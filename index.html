@@ -796,16 +796,24 @@ function rtRenderPage(canvas, project, pageId, api) {
         div.appendChild(rtBuild(el, api));
         canvas.appendChild(div);
         nodes.push(div);
-        if (el.name) nameMap[el.name] = div;
+        if (el.name) { (nameMap[el.name] = nameMap[el.name] || []).push(div); }
     });
 
     // Le nom donne a un element (visible seulement dans l'editeur, jamais affiche aux visiteurs)
     // sert a le retrouver depuis un bloc de code JavaScript, comme les noms d'objets dans Roblox.
+    // Plusieurs elements peuvent partager le meme nom (ex: 7 formes nommees "Forme") : Site.getAll() les recupere toutes.
     window.Site = {
-        get: function (name) { return nameMap[name] || null; },
-        content: function (name) { var n = nameMap[name]; return n ? n.firstElementChild : null; },
+        get: function (name) { var a = nameMap[name]; return a ? a[0] : null; },
+        getAll: function (name) { return (nameMap[name] || []).slice(); },
+        content: function (name) { var n = this.get(name); return n ? n.firstElementChild : null; },
+        contentAll: function (name) { return this.getAll(name).map(function (n) { return n.firstElementChild; }); },
         all: function () { return Object.assign({}, nameMap); },
-        page: pageId
+        page: pageId,
+        goToPage: function (nameOrId) {
+            var pid = Object.keys(project.pages).find(function (p) { return project.pages[p].name === nameOrId; });
+            if (!pid && project.pages[nameOrId]) pid = nameOrId;
+            if (pid) api.goPage(pid);
+        }
     };
     if (!api.editable) {
         pendingScripts.forEach(function (code) {
