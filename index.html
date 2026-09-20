@@ -223,6 +223,8 @@
         <button class="btn-action" style="background:#ff4757;" onclick="deleteProject()">Supprimer ce projet</button>
         <div id="save-indicator" style="font-size:11px; margin-top:8px; color:#00b894;">● Sauvegarde automatique active</div>
         <div class="hint">Chaque projet a ses propres pages, se sauvegarde tout seul en continu (a chaque action + toutes les 6 secondes), meme si tu fermes l'onglet sans faire expres.</div>
+        <button class="btn-action" style="background:#636e72;" onclick="renderStorageUsage()">Voir l'espace de stockage utilise</button>
+        <div id="storage-usage-box" style="font-size:11px; margin-top:6px;"></div>
         <div class="row2" style="margin-top:6px;">
             <button class="btn-action" style="margin-top:0; background:#6c5ce7;" onclick="exportProjectJSON()">Exporter JSON</button>
             <button class="btn-action" style="margin-top:0; background:#a29bfe; color:#000;" onclick="document.getElementById('import-file-input').click()">Importer JSON</button>
@@ -828,9 +830,10 @@ var FONTS = [
 
 var isRegistering = false, currentUser = null;
 var usersDb = JSON.parse(localStorage.getItem('site_builder_users') || '{}');
-var userProjects = JSON.parse(localStorage.getItem('site_builder_projects') || '{}');
-var published = JSON.parse(localStorage.getItem('site_builder_published') || '{}');
+var userProjects = {};   // charge depuis IndexedDB au demarrage (voir initStorage) — plus de petite limite comme localStorage
+var published = {};      // idem
 var inbox = JSON.parse(localStorage.getItem('site_builder_inbox') || '{}');
+var storageReady = false;
 
 var project = newProject();
 var activeProjectId = 'p1';
@@ -840,6 +843,66 @@ var undoStack = [], redoStack = [];
 var snapMode = 'free', fitScale = 1;
 var pubProject = null, pubPage = 'page1', pubLang = 'fr', pubUrl = '';
 var autosaveTimer = null;
+
+/* ---------- Stockage IndexedDB (capacite bien plus grande que localStorage, ~5-10 Mo) ---------- */
+var IDB_NAME = 'site_builder_store', IDB_STORE = 'kv';
+function idbOpen() {
+    return new Promise(function (resolve, reject) {
+        if (!window.indexedDB) { reject(new Error('IndexedDB indisponible')); return; }
+        var req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = function (e) { e.target.result.createObjectStore(IDB_STORE); };
+        req.onsuccess = function (e) { resolve(e.target.result); };
+        req.onerror = function () { reject(req.error); };
+    });
+}
+function idbGet(key) {
+    return idbOpen().then(function (db) {
+        return new Promise(function (resolve, reject) {
+            var tx = db.transaction(IDB_STORE, 'readonly');
+            var req = tx.objectStore(IDB_STORE).get(key);
+            req.onsuccess = function () { resolve(req.result); };
+            req.onerror = function () { reject(req.error); };
+        });
+    });
+}
+function idbSet(key, value) {
+    return idbOpen().then(function (db) {
+        return new Promise(function (resolve, reject) {
+            var tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).put(value, key);
+            tx.oncomplete = function () { resolve(true); };
+            tx.onerror = function () { reject(tx.error); };
+        });
+    });
+}
+function initStorage() {
+    return idbGet('projects').then(function (fromIdb) {
+        if (fromIdb) { userProjects = fromIdb; return; }
+        // Migration ponctuelle depuis l'ancien localStorage (limite plus petite) si des donnees y existent encore
+        var legacy = localStorage.getItem('site_builder_projects');
+        if (legacy) {
+            try { userProjects = JSON.parse(legacy); } catch (e) { userProjects = {}; }
+            return idbSet('projects', userProjects).then(function () { localStorage.removeItem('site_builder_projects'); });
+        }
+        userProjects = {};
+    }).then(function () {
+        return idbGet('published');
+    }).then(function (fromIdb) {
+        if (fromIdb) { published = fromIdb; return; }
+        var legacy = localStorage.getItem('site_builder_published');
+        if (legacy) {
+            try { published = JSON.parse(legacy); } catch (e) { published = {}; }
+            return idbSet('published', published).then(function () { localStorage.removeItem('site_builder_published'); });
+        }
+        published = {};
+    }).then(function () {
+        storageReady = true;
+    }).catch(function (err) {
+        console.error('Stockage indisponible :', err);
+        storageReady = true; // on continue quand meme avec ce qui est deja en memoire
+    });
+}
+var storageReadyPromise = initStorage(); // demarre tout de suite, en parallele du reste du chargement
 
 function newProject(name) {
     return {
@@ -880,8 +943,10 @@ function openSession(u) {
     document.getElementById('auth-modal').style.display = 'none';
     document.getElementById('control-panel').style.display = 'block';
     document.body.classList.add('app-active');
-    loadUserData();
-    startAutosaveLoop();
+    storageReadyPromise.then(function () {
+        loadUserData();
+        startAutosaveLoop();
+    });
 }
 function logout() {
     saveUserData();
@@ -955,7 +1020,7 @@ function switchProject(pid) {
     if (!store.projects[pid]) return;
     activeProjectId = pid;
     store.activeId = pid;
-    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    idbSet('projects', userProjects).catch(function (err) { console.error(err); setSaveIndicator(false); });
     loadUserData();
 }
 function createNewProject() {
@@ -966,7 +1031,7 @@ function createNewProject() {
     var id = 'p' + (Date.now());
     store.projects[id] = newProject(n);
     store.activeId = id;
-    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    idbSet('projects', userProjects).catch(function (err) { console.error(err); setSaveIndicator(false); });
     activeProjectId = id;
     loadUserData();
 }
@@ -986,28 +1051,52 @@ function deleteProject() {
     delete store.projects[activeProjectId];
     activeProjectId = Object.keys(store.projects)[0];
     store.activeId = activeProjectId;
-    localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    idbSet('projects', userProjects).catch(function (err) { console.error(err); setSaveIndicator(false); });
     loadUserData();
+}
+function fmtBytes(n) {
+    if (n < 1024) return n + ' o';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' Ko';
+    return (n / (1024 * 1024)).toFixed(1) + ' Mo';
+}
+function renderStorageUsage() {
+    var box = document.getElementById('storage-usage-box');
+    if (!box || !currentUser) return;
+    var store = ensureProjectStore();
+    var rows = Object.keys(store.projects).map(function (pid) {
+        var size = JSON.stringify(store.projects[pid]).length;
+        return { name: (store.projects[pid]._meta && store.projects[pid]._meta.name) || pid, size: size, active: pid === activeProjectId };
+    }).sort(function (a, b) { return b.size - a.size; });
+    var total = rows.reduce(function (s, r) { return s + r.size; }, 0);
+    var publishedTotal = Object.keys(published).filter(function (u) { return published[u].owner === currentUser; })
+        .reduce(function (s, u) { return s + JSON.stringify(published[u]).length; }, 0);
+    box.innerHTML = '<div style="color:#ccc; margin-bottom:4px;">Tes projets : ' + fmtBytes(total) + ' — sites publies : ' + fmtBytes(publishedTotal) + '</div>' +
+        rows.map(function (r) {
+            return '<div style="display:flex; justify-content:space-between; padding:2px 0;"><span>' + (r.active ? '➤ ' : '') + esc(r.name) + '</span><span style="color:#74b9ff;">' + fmtBytes(r.size) + '</span></div>';
+        }).join('') +
+        '<div class="hint" style="margin-top:6px;">Avec IndexedDB, la limite reelle est celle de l\'espace disque disponible sur l\'appareil (generalement bien plus que ce qu\'un site prend). Si une sauvegarde echoue quand meme, le projet le plus lourd ci-dessus (probablement plein d\'images) est le premier a alleger.</div>';
 }
 function setSaveIndicator(ok) {
     var el = document.getElementById('save-indicator');
     if (!el) return;
-    if (ok) { el.style.color = '#00b894'; el.innerText = '● Sauvegarde automatique active'; }
-    else { el.style.color = '#ff4757'; el.innerText = '⚠ Espace de stockage plein — libere de la place (supprime des images/projets) sinon tes derniers changements ne seront pas gardes'; }
+    if (ok) { el.style.color = '#00b894'; el.innerText = '● Sauvegarde automatique active (stockage IndexedDB, grande capacite)'; }
+    else { el.style.color = '#ff4757'; el.innerText = "⚠ Sauvegarde impossible — l'espace disque de l'appareil semble plein. Libere de la place (vide la corbeille, supprime des fichiers) ou exporte ce projet en JSON pour ne rien perdre."; }
 }
 function saveUserData() {
     if (!currentUser) return;
     var store = ensureProjectStore();
     store.activeId = activeProjectId;
     store.projects[activeProjectId] = project;
-    try {
-        localStorage.setItem('site_builder_projects', JSON.stringify(userProjects));
+    idbSet('projects', userProjects).then(function () {
         setSaveIndicator(true);
-    } catch (e) {
+        if (published[siteUrl()]) {
+            published[siteUrl()].project = JSON.parse(JSON.stringify(project));
+            return idbSet('published', published);
+        }
+    }).catch(function (err) {
+        console.error('Sauvegarde impossible :', err);
         setSaveIndicator(false);
-        return;
-    }
-    if (published[siteUrl()]) { published[siteUrl()].project = JSON.parse(JSON.stringify(project)); localStorage.setItem('site_builder_published', JSON.stringify(published)); }
+    });
 }
 
 /* ---------- Reglages globaux ---------- */
@@ -1785,7 +1874,7 @@ function confirmPublish() {
     saveUserData();
     pubUrl = siteUrl();
     published[pubUrl] = { owner: currentUser, visibility: project.visibility, date: new Date().toISOString(), project: JSON.parse(JSON.stringify(project)) };
-    localStorage.setItem('site_builder_published', JSON.stringify(published));
+    idbSet('published', published).catch(function (err) { console.error(err); alert("La publication n'a pas pu etre sauvegardee (espace disque insuffisant)."); });
     closePublishModal();
     openPublished(project, pubUrl);
 }
@@ -1830,10 +1919,12 @@ function renderPub() {
 function visitSiteByUrl() {
     var u = document.getElementById('visit-url').value.trim();
     if (u && u.slice(-1) !== '/') u += '/';
-    var site = published[u];
-    if (!site) { alert("Aucun site publie a cette adresse sur ce navigateur."); return; }
-    if (site.visibility === 'private' && site.owner !== currentUser) { alert('Ce site est prive.'); return; }
-    openPublished(site.project, u);
+    storageReadyPromise.then(function () {
+        var site = published[u];
+        if (!site) { alert("Aucun site publie a cette adresse sur ce navigateur."); return; }
+        if (site.visibility === 'private' && site.owner !== currentUser) { alert('Ce site est prive.'); return; }
+        openPublished(site.project, u);
+    });
 }
 
 /* ---------- Import / export ---------- */
