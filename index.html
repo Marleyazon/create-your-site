@@ -446,11 +446,17 @@ Element 5</textarea>
             <option value="text">Texte brut</option>
         </select>
         <textarea id="script-workspace" rows="6" placeholder="-- ecris ou colle ton code ici..."></textarea>
-        <button class="btn-action" style="background:#e17055;" onclick="addScriptToLibrary()">⬇ Glisser dans l'onglet Script (ajouter a la liste)</button>
+
+        <div id="script-drag-handle" draggable="true" ondragstart="onScriptDragStart(event)" ondragend="onScriptDragEnd(event)"
+             style="cursor:grab; user-select:none; background:#2d2d2d; border:2px dashed #00d2d3; border-radius:6px; padding:10px; text-align:center; color:#00d2d3; font-weight:bold; font-size:13px; margin:8px 0;">
+            ⠿ Attrape et glisse ce bloc jusque dans la liste "Onglet Script" ci-dessous
+        </div>
+        <button class="btn-action" style="background:#e17055;" onclick="addScriptToLibrary()">Ou clique ici pour l'ajouter directement</button>
         <div class="hint">Ton script est ajoute a la liste ci-dessous. Important : ceci affiche ton code Lua comme du texte — ce n'est pas un moteur d'execution. Aucun navigateur ne peut faire tourner du Lua ; pour l'executer, colle-le dans Roblox Studio (ou l'environnement Lua concerne).</div>
 
-        <label style="color:#00d2d3; font-weight:bold; margin-top:10px;">Onglet Script — tes scripts</label>
-        <div id="script-library-list" style="max-height:260px; overflow:auto;"></div>
+        <label style="color:#00d2d3; font-weight:bold; margin-top:10px;">Onglet Script — tes scripts (depose ici)</label>
+        <div id="script-library-list" ondragover="onScriptDragOver(event)" ondragleave="onScriptDragLeave(event)" ondrop="onScriptDrop(event)"
+             style="max-height:260px; overflow:auto; min-height:60px; border:2px dashed #444; border-radius:6px; padding:4px; transition:border-color .15s, background .15s;"></div>
         <button class="btn-action" style="background:#0984e3;" onclick="goToScriptPage()">Voir la page "Script" du site</button>
     </div>
 
@@ -1037,6 +1043,33 @@ function goToScriptPage() {
 
 /* ---------- Bibliotheque de scripts (espace de travail -> liste) ---------- */
 var editingScriptId = null;
+function onScriptDragStart(e) {
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', 'script-draft');
+    e.currentTarget.style.opacity = '0.5';
+}
+function onScriptDragEnd(e) {
+    e.currentTarget.style.opacity = '1';
+}
+function onScriptDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    var box = document.getElementById('script-library-list');
+    box.style.borderColor = '#00d2d3';
+    box.style.background = 'rgba(0,210,211,0.08)';
+}
+function onScriptDragLeave(e) {
+    var box = document.getElementById('script-library-list');
+    box.style.borderColor = '#444';
+    box.style.background = 'transparent';
+}
+function onScriptDrop(e) {
+    e.preventDefault();
+    var box = document.getElementById('script-library-list');
+    box.style.borderColor = '#444';
+    box.style.background = 'transparent';
+    addScriptToLibrary();
+}
 function addScriptToLibrary() {
     var name = document.getElementById('script-workspace-name').value.trim();
     var lang = document.getElementById('script-workspace-lang').value;
