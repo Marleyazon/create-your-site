@@ -1098,7 +1098,7 @@ function renderScriptLibrary() {
             '<span style="font-size:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b style="color:#00d2d3;">' + esc(s.name) + '</b> <span class="chip">' + s.lang.toUpperCase() + '</span></span>' +
             '<span style="display:flex; gap:4px; flex-shrink:0;">' +
             '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px;" onclick="editScriptFromLibrary(\'' + s.id + '\')">Modifier</button>' +
-            '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px; background:#00b894;" onclick="insertScriptOnPage(\'' + s.id + '\')">Placer sur la page</button>' +
+            '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px; background:#00b894;" onclick="insertScriptOnPage(\'' + s.id + '\')">Placer sur la page actuelle</button>' +
             '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px; background:#ff4757;" onclick="deleteScriptFromLibrary(\'' + s.id + '\')">Suppr</button>' +
             '</span></div>';
     }).join('') : '<span class="hint">Aucun script dans la liste pour le moment — ecris-en un ci-dessus puis clique sur "Glisser dans l\'onglet Script".</span>';
@@ -1122,7 +1122,6 @@ function deleteScriptFromLibrary(id) {
 function insertScriptOnPage(id) {
     var s = (project.scripts || []).find(function (x) { return x.id === id; });
     if (!s) return;
-    goToScriptPage();
     saveState();
     var size = rtStageSize(project.format);
     var idxOnPage = els().filter(function (e) { return e.type === 'code'; }).length;
