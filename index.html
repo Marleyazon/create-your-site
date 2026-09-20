@@ -435,20 +435,23 @@ Element 5</textarea>
     </div>
 
     <div class="control-section" data-tool="code" style="border:1px solid #00d2d3;">
-        <label style="color:#00d2d3; font-weight:bold;">Bloc de Code</label>
+        <label style="color:#00d2d3; font-weight:bold;">Espace de travail (ecris ou colle ton script)</label>
+        <label>Nom du script :</label>
+        <input type="text" id="script-workspace-name" placeholder="ex: Script ramassage argent">
         <label>Langage :</label>
-        <select id="new-code-lang">
+        <select id="script-workspace-lang">
             <option value="lua">Lua</option>
             <option value="js">JavaScript</option>
             <option value="html">HTML</option>
             <option value="text">Texte brut</option>
         </select>
-        <textarea id="new-code-val" rows="3">-- Votre code ici...</textarea>
-        <label>Couleur du texte :</label>
-        <input type="color" id="new-code-color" value="#00ffcc">
-        <button class="btn-action" onclick="addElement('code')">Ajouter le Bloc</button>
-        <button class="btn-action" style="background:#e17055;" onclick="goToScriptPage()">Aller a la page "Script" (la creer si besoin)</button>
-        <div class="hint">Important : ce bloc affiche ton code Lua comme du texte sur le site — c'est une vitrine, pas un moteur d'execution. Aucun navigateur ne peut faire tourner du Lua ; pour executer ce script il faut le coller dans Roblox Studio (ou l'environnement Lua concerne).</div>
+        <textarea id="script-workspace" rows="6" placeholder="-- ecris ou colle ton code ici..."></textarea>
+        <button class="btn-action" style="background:#e17055;" onclick="addScriptToLibrary()">⬇ Glisser dans l'onglet Script (ajouter a la liste)</button>
+        <div class="hint">Ton script est ajoute a la liste ci-dessous. Important : ceci affiche ton code Lua comme du texte — ce n'est pas un moteur d'execution. Aucun navigateur ne peut faire tourner du Lua ; pour l'executer, colle-le dans Roblox Studio (ou l'environnement Lua concerne).</div>
+
+        <label style="color:#00d2d3; font-weight:bold; margin-top:10px;">Onglet Script — tes scripts</label>
+        <div id="script-library-list" style="max-height:260px; overflow:auto;"></div>
+        <button class="btn-action" style="background:#0984e3;" onclick="goToScriptPage()">Voir la page "Script" du site</button>
     </div>
 
     <div class="hint">Raccourcis : Ctrl+Z annuler · Ctrl+W retablir · Ctrl+C copier · Ctrl+V coller (meme position, meme sur une autre page) · Ctrl+A tout selectionner · Ctrl+D dupliquer · Suppr effacer.</div>
@@ -802,7 +805,7 @@ function newProject(name) {
     return {
         _meta: { name: name || 'Nouveau projet', created: new Date().toISOString() },
         siteName: 'mon-site', format: 'horizontal', font: 'Arial, sans-serif',
-        langs: ['fr'], lang: 'fr', webhook: '', visibility: 'public', gridSize: 20,
+        langs: ['fr'], lang: 'fr', webhook: '', visibility: 'public', gridSize: 20, scripts: [],
         pages: { page1: { name: 'Page 1', bg: '#ffffff', bgImg: '', grid: false, elements: [] } }
     };
 }
@@ -880,15 +883,17 @@ function loadUserData() {
     activeProjectId = store.activeId && store.projects[store.activeId] ? store.activeId : Object.keys(store.projects)[0];
     project = Object.assign(newProject(), store.projects[activeProjectId]);
     if (!project._meta) project._meta = { name: 'Projet 1', created: new Date().toISOString() };
+    if (!project.scripts) project.scripts = [];
     Object.keys(project.pages).forEach(function (pid, i) { if (!project.pages[pid].name) project.pages[pid].name = 'Page ' + (i + 1); });
     pageCount = Object.keys(project.pages).length;
     currentPage = Object.keys(project.pages)[0];
-    undoStack = []; redoStack = []; sel = [];
+    undoStack = []; redoStack = []; sel = []; editingScriptId = null;
     syncPanelFromProject();
     rebuildProjectsList();
     rebuildPageTabs();
     switchPage(currentPage);
     renderInbox();
+    renderScriptLibrary();
 }
 function rebuildProjectsList() {
     var sel1 = document.getElementById('project-select');
@@ -1029,6 +1034,72 @@ function goToScriptPage() {
     project.pages[id] = { name: 'Script', bg: '#1e1e1e', bgImg: '', grid: false, elements: [] };
     switchPage(id); saveUserData();
 }
+
+/* ---------- Bibliotheque de scripts (espace de travail -> liste) ---------- */
+var editingScriptId = null;
+function addScriptToLibrary() {
+    var name = document.getElementById('script-workspace-name').value.trim();
+    var lang = document.getElementById('script-workspace-lang').value;
+    var content = document.getElementById('script-workspace').value;
+    if (!content.trim()) { alert('Ecris ou colle du code dans l\'espace de travail avant de l\'ajouter.'); return; }
+    saveState();
+    project.scripts = project.scripts || [];
+    if (editingScriptId) {
+        var idx = project.scripts.findIndex(function (s) { return s.id === editingScriptId; });
+        if (idx > -1) project.scripts[idx] = { id: editingScriptId, name: name || project.scripts[idx].name, lang: lang, content: content, updated: new Date().toISOString() };
+        editingScriptId = null;
+    } else {
+        project.scripts.push({ id: 's' + Date.now(), name: name || ('Script ' + (project.scripts.length + 1)), lang: lang, content: content, updated: new Date().toISOString() });
+    }
+    document.getElementById('script-workspace').value = '';
+    document.getElementById('script-workspace-name').value = '';
+    renderScriptLibrary();
+    saveUserData();
+}
+function renderScriptLibrary() {
+    var box = document.getElementById('script-library-list');
+    if (!box) return;
+    var list = project.scripts || [];
+    box.innerHTML = list.length ? list.map(function (s) {
+        return '<div style="display:flex; justify-content:space-between; align-items:center; gap:6px; background:#222; padding:7px 9px; border-radius:4px; margin-bottom:6px; flex-wrap:wrap;">' +
+            '<span style="font-size:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b style="color:#00d2d3;">' + esc(s.name) + '</b> <span class="chip">' + s.lang.toUpperCase() + '</span></span>' +
+            '<span style="display:flex; gap:4px; flex-shrink:0;">' +
+            '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px;" onclick="editScriptFromLibrary(\'' + s.id + '\')">Modifier</button>' +
+            '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px; background:#00b894;" onclick="insertScriptOnPage(\'' + s.id + '\')">Placer sur la page</button>' +
+            '<button class="btn-action" style="margin-top:0; padding:4px 8px; font-size:11px; background:#ff4757;" onclick="deleteScriptFromLibrary(\'' + s.id + '\')">Suppr</button>' +
+            '</span></div>';
+    }).join('') : '<span class="hint">Aucun script dans la liste pour le moment — ecris-en un ci-dessus puis clique sur "Glisser dans l\'onglet Script".</span>';
+}
+function editScriptFromLibrary(id) {
+    var s = (project.scripts || []).find(function (x) { return x.id === id; });
+    if (!s) return;
+    editingScriptId = id;
+    document.getElementById('script-workspace-name').value = s.name;
+    document.getElementById('script-workspace-lang').value = s.lang;
+    document.getElementById('script-workspace').value = s.content;
+}
+function deleteScriptFromLibrary(id) {
+    if (!confirm('Supprimer ce script de la liste ?')) return;
+    saveState();
+    project.scripts = (project.scripts || []).filter(function (x) { return x.id !== id; });
+    if (editingScriptId === id) editingScriptId = null;
+    renderScriptLibrary();
+    saveUserData();
+}
+function insertScriptOnPage(id) {
+    var s = (project.scripts || []).find(function (x) { return x.id === id; });
+    if (!s) return;
+    goToScriptPage();
+    saveState();
+    var size = rtStageSize(project.format);
+    var idxOnPage = els().filter(function (e) { return e.type === 'code'; }).length;
+    var el = {
+        type: 'code', name: s.name, content: s.content, color: '#00ffcc', lang: s.lang, bgColor: '#1e1e1e', size: 14,
+        w: 420, h: 180, x: snapV(size.w * 0.08), y: snapV(size.h * 0.08 + idxOnPage * 200),
+        scale: 1, rotation: 0, opacity: 1, animation: 'none', decal: false, z: els().length + 1, i18n: {}
+    };
+    els().push(el); sel = [els().length - 1]; renderCanvas(); saveUserData();
+}
 function deletePage() {
     if (Object.keys(project.pages).length <= 1) { alert('Il faut au moins une page.'); return; }
     if (!confirm('Supprimer cette page ?')) return;
@@ -1136,9 +1207,9 @@ function addElement(type) {
         el.socialType = document.getElementById('new-social-type').value;
         el.link = document.getElementById('new-social-link').value;
     } else if (type === 'code') {
-        el.content = document.getElementById('new-code-val').value;
-        el.color = document.getElementById('new-code-color').value;
-        el.lang = document.getElementById('new-code-lang').value;
+        el.content = document.getElementById('script-workspace').value;
+        el.color = '#00ffcc';
+        el.lang = document.getElementById('script-workspace-lang').value;
         el.bgColor = '#1e1e1e'; el.size = 14; el.w = 420; el.h = 180;
     } else if (type === 'form') {
         el.title = document.getElementById('new-form-title').value;
